@@ -1,7 +1,9 @@
 --[[
     PlayerAnimLib by Kerkel
     Version 0
-    TODO: RGON costume animation support akin to Hemoptysis
+    TODO
+    | RGON costume animation support akin to Hemoptysis
+    | List player spritesheet paths
 ]]
 
 local VERSION = 1
@@ -22,9 +24,27 @@ PlayerAnimLib.Utility = {}
 
 --#region Internal
 
+---@type table<SkinColor, string>
+PlayerAnimLib.Internal.COLOR_TO_SUFFIX = {
+    [SkinColor.SKIN_PINK] = ".png",
+    [SkinColor.SKIN_WHITE] = "_white.png",
+    [SkinColor.SKIN_BLACK] = "_black.png",
+    [SkinColor.SKIN_BLUE] = "_blue.png",
+    [SkinColor.SKIN_RED] = "_red.png",
+    [SkinColor.SKIN_GREEN] = "_green.png",
+    [SkinColor.SKIN_GREY] = "_grey.png",
+    [SkinColor.SKIN_SHADOW] = "_shadow.png",
+}
+
+---@type table<PlayerType, string>
+PlayerAnimLib.Internal.PLAYER_TO_SKIN = {
+    [PlayerType.PLAYER_ISAAC] = "gfx/characters/costumes/character_001_isaac.png",
+    -- Todo
+}
+
 function PlayerAnimLib.Internal:ClearCallbacks()
     for _, v in ipairs(PlayerAnimLib.Internal.Callbacks) do
-        PlayerAnimLib:RemoveCallback(v[1], v[2])
+        PlayerAnimLib:RemoveCallback(v[1], v[3])
     end
 end
 
@@ -59,17 +79,34 @@ function PlayerAnimLib.Internal:GetData(player)
 end
 
 ---@param player EntityPlayer
+function PlayerAnimLib.Utility:GetSkinPath(player)
+    return string.gsub(
+        REPENTOGON and EntityConfig.GetPlayer(player:GetPlayerType()):GetSkinPath()
+        or PlayerAnimLib.Internal.PLAYER_TO_SKIN[player:GetPlayerType()]
+        or PlayerAnimLib.Internal.PLAYER_TO_SKIN[PlayerType.PLAYER_ISAAC],
+        ".png",
+        PlayerAnimLib.Internal.COLOR_TO_SUFFIX[player:GetBodyColor()]
+    )
+end
+
+---@param player EntityPlayer
 function PlayerAnimLib.Internal:Reload(player)
-    player:ChangePlayerType(player:GetPlayerType())
+    local sprite = player:GetSprite()
+    local path = PlayerAnimLib.Utility:GetSkinPath(player)
+
+    for layer = PlayerSpriteLayer.SPRITE_GLOW, PlayerSpriteLayer.SPRITE_BACK do
+        if layer ~= PlayerSpriteLayer.SPRITE_GHOST then
+            sprite:ReplaceSpritesheet(layer, path)
+        end
+    end
+
+    sprite:LoadGraphics()
 end
 
 ---@param player EntityPlayer
 ---@param path string
 function PlayerAnimLib.Internal:Load(player, path)
-    local sprite = player:GetSprite()
-
-    sprite:Load(path, true)
-
+    player:GetSprite():Load(path, true)
     PlayerAnimLib.Internal:Reload(player)
 end
 --#endregion
@@ -100,18 +137,6 @@ function PlayerAnimLib:Play(player, path, anim)
 end
 
 ---@param player EntityPlayer
-PlayerAnimLib.Internal:AddCallback(ModCallbacks.MC_POST_PLAYER_UPDATE, CallbackPriority.LATE, function (_, player)
-    local data = PlayerAnimLib.Internal:GetData(player)
-
-    if data.Loaded and player:IsExtraAnimationFinished() then
-        data.Path = nil
-        data.Anim = nil
-        data.Loaded = nil
-        PlayerAnimLib.Internal:Load(player, data.Default)
-    end
-end)
-
----@param player EntityPlayer
 ---@param path string
 function PlayerAnimLib:SetDefaultAnm2(player, path)
     local data = PlayerAnimLib.Internal:GetData(player)
@@ -123,5 +148,17 @@ function PlayerAnimLib:SetDefaultAnm2(player, path)
     end
 end
 --#endregion
+
+---@param player EntityPlayer
+PlayerAnimLib.Internal:AddCallback(ModCallbacks.MC_POST_PLAYER_UPDATE, CallbackPriority.LATE + 1, function (_, player)
+    local data = PlayerAnimLib.Internal:GetData(player)
+
+    if data.Loaded and (not player:GetSprite():IsPlaying(data.Anim) or player:IsExtraAnimationFinished()) then
+        data.Path = nil
+        data.Anim = nil
+        data.Loaded = nil
+        PlayerAnimLib.Internal:Load(player, data.Default)
+    end
+end)
 
 PlayerAnimLib.Internal:AddCallbacks()
