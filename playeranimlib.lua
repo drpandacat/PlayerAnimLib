@@ -5,7 +5,7 @@
     | RGON costume animation support akin to Hemoptysis
 ]]
 
-local VERSION = 1.01
+local VERSION = 1
 
 if PlayerAnimLib then
     if PlayerAnimLib.Internal.VERSION > VERSION then return end
