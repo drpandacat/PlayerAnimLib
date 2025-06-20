@@ -1,11 +1,11 @@
 --[[
     Player Animation Library by Kerkel
-    Version 1
+    Version 1.0.1
     TODO
     | RGON costume animation support akin to Hemoptysis
 ]]
 
-local VERSION = 1
+local VERSION = 2
 
 if PlayerAnimLib then
     if PlayerAnimLib.Internal.VERSION > VERSION then return end
@@ -175,22 +175,25 @@ end
 
 ---@param player EntityPlayer
 ---@param path string
-function PlayerAnimLib:Load(player, path)
+---@param skip? boolean
+function PlayerAnimLib:Load(player, path, skip)
     player:GetSprite():Load(path, true)
+    if skip then return end
     PlayerAnimLib:Reload(player)
 end
 
 ---@param player EntityPlayer
 ---@param path string
 ---@param anim string
-function PlayerAnimLib:Play(player, path, anim)
+---@param custom? boolean
+function PlayerAnimLib:Play(player, path, anim, custom)
     local data = PlayerAnimLib:GetData(player)
 
     data.Path = anim
     data.Anim = anim
     data.Loaded = true
 
-    PlayerAnimLib:Load(player, path)
+    PlayerAnimLib:Load(player, path, custom)
 
     player:PlayExtraAnimation(anim)
 end
