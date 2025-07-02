@@ -1,11 +1,11 @@
 --[[
     Player Animation Library by Kerkel
-    Version 1.0.1
+    Version 1.0.2
     TODO
     | RGON costume animation support akin to Hemoptysis
 ]]
 
-local VERSION = 2
+local VERSION = 3
 
 if PlayerAnimLib then
     if PlayerAnimLib.Internal.VERSION > VERSION then return end
@@ -120,6 +120,15 @@ PlayerAnimLib.NO_SKIN_ALT = {
     [PlayerType.PLAYER_LAZARUS2_B] = true,
     [PlayerType.PLAYER_JACOB2_B] = true,
 }
+
+if REPENTOGON then
+    for i = PlayerType.NUM_PLAYER_TYPES, EntityConfig.GetMaxPlayerType() do
+        local config = EntityConfig.GetPlayer(i)
+        if config and config:GetSkinColor() ~= -1 then
+            PlayerAnimLib.NO_SKIN_ALT[i] = true
+        end
+    end
+end
 
 ---@param player EntityPlayer
 function PlayerAnimLib:GetData(player)
