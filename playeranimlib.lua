@@ -1,17 +1,24 @@
 --[[
     Player Animation Library by Kerkel
-    Version 1.0.2
+    Version 1.1
     TODO
     | RGON costume animation support akin to Hemoptysis
 ]]
 
-local VERSION = 3
+local VERSION = 4
 
 if PlayerAnimLib then
     if PlayerAnimLib.Internal.VERSION > VERSION then return end
     for _, v in ipairs(PlayerAnimLib.Internal.CallbackEntries) do
         PlayerAnimLib:RemoveCallback(v[1], v[3])
     end
+end
+
+local sfx = SFXManager()
+
+---@param sprite Sprite
+local function DeathSoundCondition(sprite)
+    return (sprite:IsPlaying("Death") or sprite:IsPlaying("LostDeath") or sprite:IsPlaying("DeathTeleport")) and sfx:IsPlaying(SoundEffect.SOUND_ISAACDIES)
 end
 
 PlayerAnimLib = RegisterMod("Player Animation Library", 1)
@@ -23,21 +30,86 @@ PlayerAnimLib.Internal.CallbackEntries = {
         CallbackPriority.IMPORTANT,
         ---@param player EntityPlayer
         function (_, player)
+            local sprite = player:GetSprite()
             local data = PlayerAnimLib:GetData(player)
 
-            if data.Loaded and (not player:GetSprite():IsPlaying(data.Anim) or player:IsExtraAnimationFinished()) then
+            if DeathSoundCondition(sprite) then
+                if Isaac.RunCallbackWithParam(PlayerAnimLib.Callback.PRE_DEATH_SOUND, player:GetPlayerType(), player) then
+                    sfx:Stop(SoundEffect.SOUND_ISAACDIES)
+                end
+            end
+
+            if data.Loaded and (not sprite:IsPlaying(data.Anim) or player:IsExtraAnimationFinished()) then
                 data.Path = nil
                 data.Anim = nil
                 data.Loaded = nil
                 PlayerAnimLib:Load(player, data.Default)
             end
         end,
+    },
+    {
+        ModCallbacks.MC_ENTITY_TAKE_DMG,
+        CallbackPriority.IMPORTANT,
+        ---@param player Entity
+        function (_, player)
+            player = player:ToPlayer()
+            if Isaac.RunCallbackWithParam(PlayerAnimLib.Callback.PRE_HURT_SOUND, player:GetPlayerType(), player) then
+                sfx:Play(SoundEffect.SOUND_ISAAC_HURT_GRUNT, 0, 1)
+            end
+        end,
+        EntityType.ENTITY_PLAYER
+    },
+    {
+        ModCallbacks.MC_POST_EFFECT_UPDATE,
+        CallbackPriority.IMPORTANT,
+        ---@param effect EntityEffect
+        function (_, effect)
+            local player = effect.SpawnerEntity and effect.SpawnerEntity:ToPlayer()
+            if not player then return end
+
+            local sprite = effect:GetSprite()
+
+            if DeathSoundCondition(sprite) then
+                if Isaac.RunCallbackWithParam(PlayerAnimLib.Callback.PRE_DEATH_SOUND, player:GetPlayerType(), player) then
+                    sfx:Stop(SoundEffect.SOUND_ISAACDIES)
+                end
+            end
+        end,
+        EffectVariant.DEVIL
     }
 }
 
 for _, v in ipairs(PlayerAnimLib.Internal.CallbackEntries) do
     PlayerAnimLib:AddPriorityCallback(v[1], v[2], v[3], v[4])
 end
+
+---@enum PALCallback
+PlayerAnimLib.Callback = {
+    ---Params:
+    ---
+    ---* player - `EntityPlayer`
+    ---
+    ---Returns:
+    ---
+    ---* `true` - Cancel vanilla hurt sound
+    ---
+    ---Filter:
+    ---
+    ---* `PlayerType`
+    PRE_HURT_SOUND = "PAL_PRE_HURT_SOUND",
+    ---Params:
+    ---
+    ---* player - `EntityPlayer`
+    ---
+    ---Returns:
+    ---
+    ---* `true` - Cancel vanilla death sound
+    ---
+    ---Filter:
+    ---
+    ---* `PlayerType`
+    PRE_DEATH_SOUND = "PAL_PRE_DEATH_SOUND",
+}
 
 ---@type table<SkinColor, string>
 PlayerAnimLib.COLOR_TO_SUFFIX = {
